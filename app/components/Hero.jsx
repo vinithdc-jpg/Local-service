@@ -62,10 +62,17 @@ export default function Hero() {
 
                 <motion.h1
                     variants={itemVariants}
-                    className="text-5xl md:text-8xl font-black tracking-tight text-white mb-8 max-w-4xl mx-auto leading-[0.9]"
+                    className="text-5xl md:text-8xl font-black tracking-tight mb-8 max-w-4xl mx-auto leading-[0.9]"
                 >
-                    Expert Help for Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-indigo-400">Daily Hustle</span>
+                    <span className="text-white">
+                        Expert Help for Your{" "}
+                    </span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-indigo-400">
+                        Daily Hustle
+                    </span>
                 </motion.h1>
+
+
 
                 <motion.p
                     variants={itemVariants}
