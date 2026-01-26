@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { Send } from "lucide-react";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 
-export default function Chatbox() {
+function ChatContent() {
   const [messages, setMessages] = useState([
     { id: 1, sender: "worker", text: "Hi, how can I help you?" },
     { id: 2, sender: "me", text: "I need a service today." },
@@ -43,16 +45,14 @@ export default function Chatbox() {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${
-              msg.sender === "me" ? "justify-end" : "justify-start"
-            }`}
+            className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"
+              }`}
           >
             <div
-              className={`px-4 py-2 rounded-xl max-w-[70%] text-sm ${
-                msg.sender === "me"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card border"
-              }`}
+              className={`px-4 py-2 rounded-xl max-w-[70%] text-sm ${msg.sender === "me"
+                ? "bg-primary text-primary-foreground"
+                : "bg-card border"
+                }`}
             >
               {msg.text}
             </div>
@@ -80,5 +80,21 @@ export default function Chatbox() {
         </button>
       </form>
     </div>
+  );
+}
+
+export default function Chatbox() {
+  return (
+    <main className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <Suspense fallback={
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      }>
+        <ChatContent />
+      </Suspense>
+      <Footer />
+    </main>
   );
 }
