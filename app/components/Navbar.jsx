@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
 
 export default function Navbar() {
-    const { isAuthenticated, logout } = useAuth();
+    const { isAuthenticated, logout, hasWorkerProfile } = useAuth();
 
     return (
         <motion.nav
@@ -25,7 +25,7 @@ export default function Navbar() {
                         Services
                     </Link>
                     <Link href="/create-worker" className="hover:text-accent transition-all duration-300 relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-accent after:transition-all hover:after:w-full">
-                        Join as Pro
+                        {hasWorkerProfile ? "Profile" : "Join as Pro"}
                     </Link>
 
                     <div className="flex items-center gap-4 ml-4">

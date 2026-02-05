@@ -71,7 +71,10 @@ export default function Services() {
                                     <div className="flex items-center justify-between mt-auto">
                                         <span className="text-xl font-black text-primary">{service.price}</span>
                                         <Link
-                                            href="/workers"
+                                            href={`/workers?role=${service.title.includes("Barber") ? "Barber" :
+                                                    service.title.includes("Plumbing") ? "Plumber" :
+                                                        service.title.includes("Consulting") ? "Consultant" : "all"
+                                                }`}
                                             className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary group-hover:bg-accent group-hover:text-white transition-all duration-300"
                                         >
                                             <ChevronRight className="w-6 h-6" />

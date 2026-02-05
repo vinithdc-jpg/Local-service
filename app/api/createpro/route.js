@@ -7,6 +7,43 @@ export async function POST(request) {
   try {
     await connectDB();
 
+    // Get token from Authorization header
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json(
+        { error: "Authentication required. Please login." },
+        { status: 401 }
+      );
+    }
+
+    // Extract and verify token
+    const token = authHeader.substring(7);
+    const jwt = require("jsonwebtoken");
+    let decoded;
+    try {
+      decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || "your-secret-key-change-this"
+      );
+    } catch (err) {
+      return NextResponse.json(
+        { error: "Invalid or expired token. Please login again." },
+        { status: 401 }
+      );
+    }
+
+    // Check if worker profile already exists for this user
+    const existingWorker = await workerModel.findOne({ userId: decoded.userId });
+    if (existingWorker) {
+      return NextResponse.json(
+        {
+          error: "You already have a worker profile.",
+          worker: existingWorker
+        },
+        { status: 400 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("image");
 
@@ -20,9 +57,6 @@ export async function POST(request) {
     // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-
-    console.log("Starting Cloudinary upload for:", formData.get("displayName"));
-    console.log("File type:", file.type, "Size:", bytes.byteLength);
 
     // Upload to Cloudinary using upload_stream (more robust for App Router)
     const uploadResult = await new Promise((resolve, reject) => {
@@ -44,10 +78,9 @@ export async function POST(request) {
       uploadStream.end(buffer);
     });
 
-    console.log("Cloudinary upload successful:", uploadResult.secure_url);
-
-    // Save in MongoDB
+    // Save in MongoDB with userId
     const worker = await workerModel.create({
+      userId: decoded.userId, // Link worker to authenticated user
       displayName: formData.get("displayName"),
       role: formData.get("role"),
       location: formData.get("location"),
@@ -69,6 +102,46 @@ export async function POST(request) {
         error: "Internal Server Error",
         details: error.message,
         cloudinary_error: error.http_code || error.message
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request) {
+  try {
+    await connectDB();
+
+    // Extract role query parameter
+    const { searchParams } = new URL(request.url);
+    const role = searchParams.get('role');
+
+    // Build query object
+    let query = {};
+    if (role && role !== 'all') {
+      // Case-insensitive role matching
+      query.role = { $regex: new RegExp(`^${role}$`, 'i') };
+    }
+
+    const workers = await workerModel.find(query).sort({ createdAt: -1 });
+
+    return NextResponse.json(
+      {
+        success: true,
+        count: workers.length,
+        workers,
+        filters: { role: role || 'all' }
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("API Error [get workers]:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Failed to fetch workers",
+        details: error.message,
       },
       { status: 500 }
     );

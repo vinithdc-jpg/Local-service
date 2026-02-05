@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-import { Briefcase, Upload, Loader2, CheckCircle2 } from "lucide-react";
+import { Briefcase, Upload, Loader2, CheckCircle2, MapPin, DollarSign, Mail, Calendar, Edit } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../context/AuthContext";
 
 export default function CreateWorkerPage() {
     const router = useRouter();
+    const { setWorkerProfile } = useAuth();
     const [formData, setFormData] = useState({
         name: "",
         role: "",
@@ -20,6 +22,47 @@ export default function CreateWorkerPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState("");
+    const [isCheckingProfile, setIsCheckingProfile] = useState(true);
+    const [existingWorker, setExistingWorker] = useState(null); // Store existing profile
+
+    // Check authentication and existing profile on mount
+    useEffect(() => {
+        const checkProfileStatus = async () => {
+            // Import auth utilities dynamically
+            const { getToken, isAuthenticated } = await import("../lib/authUtils");
+
+            if (!isAuthenticated()) {
+                router.push("/login");
+                return;
+            }
+
+            try {
+                const token = getToken();
+                const response = await fetch("/api/worker-profile", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                    },
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.hasProfile) {
+                    // User already has a profile, store it to display
+                    setExistingWorker(data.worker);
+                    setIsCheckingProfile(false);
+                } else {
+                    // No profile exists, allow user to create one
+                    setIsCheckingProfile(false);
+                }
+            } catch (err) {
+                console.error("Error checking profile:", err);
+                setIsCheckingProfile(false);
+            }
+        };
+
+        checkProfileStatus();
+    }, []);
 
     const handleImageChange = (e) => {
         const file = e.target.files[0];
@@ -44,6 +87,16 @@ export default function CreateWorkerPage() {
         setError("");
 
         try {
+            const { getToken } = await import("../lib/authUtils");
+            const token = getToken();
+
+            if (!token) {
+                setError("You must be logged in to create a profile.");
+                setIsSubmitting(false);
+                router.push("/login");
+                return;
+            }
+
             const data = new FormData();
             data.append("displayName", formData.name);
             data.append("role", formData.role);
@@ -61,6 +114,9 @@ export default function CreateWorkerPage() {
 
             const response = await fetch("/api/createpro", {
                 method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
                 body: data,
             });
 
@@ -69,9 +125,15 @@ export default function CreateWorkerPage() {
                 throw new Error(errorData.error || "Failed to create profile");
             }
 
+            const result = await response.json();
+
             setIsSuccess(true);
-            setTimeout(() => {
-                router.push("/workers");
+            // Update global auth state with worker profile
+            setWorkerProfile(result.worker._id);
+            // Wait 2 seconds, then load the newly created profile
+            setTimeout(async () => {
+                setIsSuccess(false);
+                setExistingWorker(result.worker); // Display the newly created profile
             }, 2000);
         } catch (err) {
             console.error("Create worker error:", err);
@@ -81,13 +143,161 @@ export default function CreateWorkerPage() {
         }
     };
 
+    if (isCheckingProfile) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background p-4">
+                <div className="text-center space-y-4">
+                    <Loader2 className="w-12 h-12 text-primary mx-auto animate-spin" />
+                    <p className="text-muted-foreground">Checking your profile status...</p>
+                </div>
+            </div>
+        );
+    }
+
     if (isSuccess) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background p-4">
                 <div className="text-center space-y-4 animate-in fade-in zoom-in duration-300">
                     <CheckCircle2 className="w-16 h-16 text-primary mx-auto" />
                     <h1 className="text-2xl font-bold">Profile Created Successfully!</h1>
-                    <p className="text-muted-foreground">Redirecting you to the workers list...</p>
+                    <p className="text-muted-foreground">Reloading your profile...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // Display existing worker profile instead of the form
+    if (existingWorker) {
+        return (
+            <div className="min-h-screen py-20 px-4 bg-background">
+                <div className="container mx-auto max-w-4xl">
+                    {/* Header Section */}
+                    <div className="mb-10">
+                        <div className="flex items-center justify-between mb-4">
+                            <h1 className="text-3xl font-bold">Your Worker Profile</h1>
+                            <Button
+                                variant="outline"
+                                className="flex items-center gap-2"
+                                onClick={() => router.push("/workers")}
+                            >
+                                View All Workers
+                            </Button>
+                        </div>
+                        <p className="text-muted-foreground">Your professional service profile is active and visible to clients</p>
+                    </div>
+
+                    {/* Profile Card */}
+                    <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                        {/* Cover Header */}
+                        <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 h-32"></div>
+
+                        {/* Profile Content */}
+                        <div className="p-8 -mt-16">
+                            {/* Profile Image and Basic Info */}
+                            <div className="flex flex-col md:flex-row gap-6 items-start md:items-end mb-8">
+                                <div className="relative">
+                                    <div className="w-32 h-32 rounded-full border-4 border-card shadow-xl overflow-hidden bg-muted">
+                                        {existingWorker.image ? (
+                                            <img
+                                                src={existingWorker.image}
+                                                alt={existingWorker.displayName}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-muted-foreground">
+                                                {existingWorker.displayName?.[0]?.toUpperCase() || "W"}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full border-2 border-card flex items-center justify-center">
+                                        <Briefcase className="w-4 h-4 text-primary-foreground" />
+                                    </div>
+                                </div>
+
+                                <div className="flex-1">
+                                    <h2 className="text-3xl font-bold mb-1">{existingWorker.displayName}</h2>
+                                    <p className="text-xl text-primary mb-2">{existingWorker.role}</p>
+                                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                                        <div className="flex items-center gap-1">
+                                            <MapPin className="w-4 h-4" />
+                                            <span>{existingWorker.location}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <Calendar className="w-4 h-4" />
+                                            <span>Member since {new Date(existingWorker.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <div className="bg-primary/10 border border-primary/20 rounded-lg px-4 py-3 text-center">
+                                        <div className="text-sm text-muted-foreground mb-1">Hourly Rate</div>
+                                        <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
+                                            <DollarSign className="w-5 h-5" />
+                                            {existingWorker.hourlyRate}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-border my-6"></div>
+
+                            {/* About Section */}
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold flex items-center gap-2">
+                                    <Briefcase className="w-5 h-5 text-primary" />
+                                    About My Services
+                                </h3>
+                                <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                                    {existingWorker.aboutService}
+                                </p>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-border my-6"></div>
+
+                            {/* Profile Stats */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-primary">{existingWorker.hourlyRate > 30 ? "Premium" : "Standard"}</div>
+                                    <div className="text-sm text-muted-foreground">Service Tier</div>
+                                </div>
+                                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-primary">Active</div>
+                                    <div className="text-sm text-muted-foreground">Profile Status</div>
+                                </div>
+                                <div className="bg-secondary/50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-primary">{existingWorker.location.split(',')[0]}</div>
+                                    <div className="text-sm text-muted-foreground">Service Area</div>
+                                </div>
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="mt-8 pt-6 border-t border-border flex gap-4">
+                                <Button className="flex-1 flex items-center justify-center gap-2">
+                                    <Mail className="w-4 h-4" />
+                                    Contact Me
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="flex-1 flex items-center justify-center gap-2"
+                                    onClick={() => alert("Edit functionality coming soon!")}
+                                >
+                                    <Edit className="w-4 h-4" />
+                                    Edit Profile
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Additional Information */}
+                    <div className="mt-6 p-4 bg-muted/50 border border-border rounded-lg">
+                        <p className="text-sm text-muted-foreground text-center">
+                            Your profile is visible to potential clients browsing local services.
+                            Keep your information up-to-date to attract more opportunities.
+                        </p>
+                    </div>
                 </div>
             </div>
         );

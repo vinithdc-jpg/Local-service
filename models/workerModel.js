@@ -2,6 +2,13 @@ import mongoose from "mongoose";
 
 const workerSchema = new mongoose.Schema(
   {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      unique: true, // Each user can only create one worker profile
+    },
+
     displayName: {
       type: String,
       required: true,
