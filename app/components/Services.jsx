@@ -31,7 +31,7 @@ const services = [
 
 export default function Services() {
     return (
-        <section id="services" className="py-32 relative overflow-hidden bg-white">
+        <section id="services" className="py-16 md:py-32 relative overflow-hidden bg-white">
             <div className="container mx-auto px-6 relative z-10">
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}
@@ -72,8 +72,8 @@ export default function Services() {
                                         <span className="text-xl font-black text-primary">{service.price}</span>
                                         <Link
                                             href={`/workers?role=${service.title.includes("Barber") ? "Barber" :
-                                                    service.title.includes("Plumbing") ? "Plumber" :
-                                                        service.title.includes("Consulting") ? "Consultant" : "all"
+                                                service.title.includes("Plumbing") ? "Plumber" :
+                                                    service.title.includes("Consulting") ? "Consultant" : "all"
                                                 }`}
                                             className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-primary group-hover:bg-accent group-hover:text-white transition-all duration-300"
                                         >

@@ -34,13 +34,13 @@ export default function Hero() {
 
         {/* Left Content */}
         <div className="space-y-6">
-          
+
           {/* Typing Text */}
           <motion.h1
             variants={container}
             initial="hidden"
             animate="visible"
-            className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight flex flex-wrap"
+            className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-[1.1] flex flex-wrap"
           >
             {text.split("").map((char, index) => (
               <motion.span key={index} variants={letter}>
@@ -54,7 +54,7 @@ export default function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.8, duration: 0.6 }}
-            className="text-4xl md:text-6xl lg:text-7xl font-bold"
+            className="text-4xl md:text-6xl lg:text-7xl font-extrabold"
           >
             <span className="text-orange-600">Exceptional Results</span>
           </motion.h2>
