@@ -2,6 +2,7 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -10,17 +11,19 @@ const outfit = Outfit({
 });
 
 export const metadata = {
-  title: "Service Booking | Professional Services",
-  description: "Book your appointment easily online.",
+  title: "ServicePro | Premium Professional Services",
+  description: "Book trusted local professionals with ease. Premium service booking platform.",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${outfit.variable} antialiased`}>
-        <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -2,19 +2,16 @@ import { Suspense } from "react";
 import Footer from "../components/Footer";
 import Navbar from "../components/Navbar";
 import WorkerProfiles from "../components/WorkerProfiles";
+import { PageLoader } from "../components/ui/Skeleton";
 
 export default function Workers() {
-    return (
-        <main className="min-h-screen bg-background">
-            <Navbar />
-            <Suspense fallback={
-                <div className="flex-1 flex items-center justify-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                </div>
-            }>
-                <WorkerProfiles />
-            </Suspense>
-            <Footer />
-        </main>
-    );
+  return (
+    <main className="min-h-screen bg-background">
+      <Navbar />
+      <Suspense fallback={<PageLoader message="Loading professionals..." />}>
+        <WorkerProfiles />
+      </Suspense>
+      <Footer />
+    </main>
+  );
 }

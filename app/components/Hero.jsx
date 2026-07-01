@@ -1,105 +1,151 @@
-"use client"
+"use client";
+
+import Link from "next/link";
 import { motion } from "framer-motion";
+import { ArrowRight, Star, Shield, Clock } from "lucide-react";
+import Button from "./ui/Button";
+import Badge from "./ui/Badge";
 
-const text = "Premium Services,";
-
-const container = {
-  hidden: { opacity: 1 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.06,
-    },
-  },
-};
-
-const letter = {
-  hidden: {
-    opacity: 0,
-    color: "#000000",
-  },
-  visible: {
-    opacity: 1,
-    color: "#ffffff",
-    transition: {
-      duration: 0.4,
-    },
-  },
-};
+const stats = [
+  { icon: Star, label: "4.9 Rating", value: "2k+ reviews" },
+  { icon: Shield, label: "Verified Pros", value: "500+ experts" },
+  { icon: Clock, label: "Fast Booking", value: "Under 60 sec" },
+];
 
 export default function Hero() {
   return (
-    <main className="w-screen min-h-screen bg-indigo-950 flex items-center justify-center px-6 overflow-hidden">
-      <div className="max-w-7xl w-full grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+    <section className="relative min-h-[calc(100vh-4rem)] hero-gradient overflow-hidden flex items-center">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-accent/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-[var(--gradient-end)]/20 rounded-full blur-3xl" />
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: "radial-gradient(circle at 1px 1px, white 1px, transparent 0)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+      </div>
 
-        {/* Left Content */}
-        <div className="space-y-6">
+      <div className="container mx-auto px-4 sm:px-6 py-20 relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div className="space-y-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+            >
+              <Badge variant="accent" className="mb-6 px-4 py-1.5 text-sm">
+                ✦ Premium Service Booking Platform
+              </Badge>
+            </motion.div>
 
-          {/* Typing Text */}
-          <motion.h1
-            variants={container}
-            initial="hidden"
-            animate="visible"
-            className="text-4xl md:text-6xl lg:text-7xl font-extrabold leading-[1.1] flex flex-wrap"
-          >
-            {text.split("").map((char, index) => (
-              <motion.span key={index} variants={letter}>
-                {char === " " ? "\u00A0" : char}
-              </motion.span>
-            ))}
-          </motion.h1>
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.1 }}
+              className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-extrabold leading-[1.08] text-white"
+            >
+              Premium Services,{" "}
+              <span className="bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
+                Exceptional Results
+              </span>
+            </motion.h1>
 
-          {/* Static Highlight Text */}
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.8, duration: 0.6 }}
-            className="text-4xl md:text-6xl lg:text-7xl font-extrabold"
-          >
-            <span className="text-orange-600">Exceptional Results</span>
-          </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.25 }}
+              className="text-lg sm:text-xl text-slate-300 max-w-xl leading-relaxed"
+            >
+              Book trusted local professionals in seconds. From barbers to plumbers — quality service, guaranteed satisfaction.
+            </motion.p>
 
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2.4 }}
-            className="text-gray-300 text-lg md:text-xl max-w-xl"
-          >
-            Book your appointment in seconds. Experience professional service from trusted local experts.
-          </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.35 }}
+              className="flex flex-col sm:flex-row gap-4"
+            >
+              <Link href="/workers">
+                <Button size="lg" className="w-full sm:w-auto group">
+                  Find Professionals
+                  <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/#contact">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full sm:w-auto border-white/20 text-white hover:bg-white/10 hover:border-white/40"
+                >
+                  Contact Us
+                </Button>
+              </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.5 }}
+              className="flex flex-wrap gap-6 pt-4"
+            >
+              {stats.map((stat, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
+                    <stat.icon className="w-5 h-5 text-indigo-300" />
+                  </div>
+                  <div>
+                    <div className="text-white font-bold text-sm">{stat.label}</div>
+                    <div className="text-slate-400 text-xs">{stat.value}</div>
+                  </div>
+                </div>
+              ))}
+            </motion.div>
+          </div>
 
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2.8 }}
-            className="flex gap-4 pt-4"
+            initial={{ opacity: 0, scale: 0.9, x: 40 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="relative hidden lg:block"
           >
-            <button className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg transition">
-              View Workers
-            </button>
-            <button className="px-6 py-3 border border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white font-semibold rounded-lg transition">
-              Contact Us
-            </button>
+            <div className="relative">
+              <div className="absolute -inset-4 bg-gradient-to-r from-accent/30 to-purple-500/30 rounded-3xl blur-2xl" />
+              <motion.img
+                src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=800&q=80"
+                alt="Professional service expert"
+                whileHover={{ scale: 1.02 }}
+                transition={{ duration: 0.4 }}
+                className="relative w-full max-w-lg mx-auto rounded-3xl shadow-2xl border border-white/10 object-cover aspect-[4/5]"
+              />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                className="absolute -bottom-6 -left-6 glass-strong rounded-2xl p-4 shadow-xl border border-white/10"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-2">
+                    {["A", "B", "C"].map((l, i) => (
+                      <div
+                        key={i}
+                        className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-purple-500 flex items-center justify-center text-white text-xs font-bold border-2 border-background"
+                      >
+                        {l}
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <div className="text-foreground font-bold text-sm">+2,000 happy clients</div>
+                    <div className="text-muted-foreground text-xs">Joined this month</div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </motion.div>
-
         </div>
-
-        {/* Right Image */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.85, x: 40 }}
-          animate={{ opacity: 1, scale: 1, x: 0 }}
-          transition={{ duration: 1 }}
-          className="flex justify-center md:justify-end"
-        >
-          <motion.img
-            src="https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9"
-            alt="Professional Service"
-            whileHover={{ scale: 1.05 }}
-            className="w-full max-w-xl lg:max-w-2xl rounded-3xl shadow-2xl"
-          />
-        </motion.div>
-
       </div>
-    </main>
+    </section>
   );
 }

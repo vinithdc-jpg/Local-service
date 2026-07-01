@@ -3,7 +3,16 @@
 import { useState, useEffect } from "react";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
-import { Briefcase, Upload, Loader2, CheckCircle2, MapPin, DollarSign, Mail, Calendar, Edit } from "lucide-react";
+import Label from "../components/ui/Label";
+import Textarea from "../components/ui/Textarea";
+import Badge from "../components/ui/Badge";
+import Avatar from "../components/ui/Avatar";
+import Card, { CardHeader, CardTitle, CardDescription } from "../components/ui/Card";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import { PageLoader } from "../components/ui/Skeleton";
+import { Briefcase, Upload, CheckCircle2, MapPin, DollarSign, Mail, Calendar, Edit } from "lucide-react";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../context/AuthContext";
 
@@ -145,36 +154,45 @@ export default function CreateWorkerPage() {
 
     if (isCheckingProfile) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background p-4">
-                <div className="text-center space-y-4">
-                    <Loader2 className="w-12 h-12 text-primary mx-auto animate-spin" />
-                    <p className="text-muted-foreground">Checking your profile status...</p>
-                </div>
-            </div>
+            <main className="min-h-screen bg-background">
+                <Navbar />
+                <PageLoader message="Checking your profile status..." />
+            </main>
         );
     }
 
     if (isSuccess) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-background p-4">
-                <div className="text-center space-y-4 animate-in fade-in zoom-in duration-300">
-                    <CheckCircle2 className="w-16 h-16 text-primary mx-auto" />
-                    <h1 className="text-2xl font-bold">Profile Created Successfully!</h1>
-                    <p className="text-muted-foreground">Reloading your profile...</p>
-                </div>
-            </div>
+            <main className="min-h-screen bg-background flex flex-col">
+                <Navbar />
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex-1 flex items-center justify-center p-4"
+                >
+                    <div className="text-center space-y-4">
+                        <div className="w-16 h-16 rounded-2xl bg-success/15 flex items-center justify-center mx-auto">
+                            <CheckCircle2 className="w-8 h-8 text-success" />
+                        </div>
+                        <h1 className="text-2xl font-bold">Profile Created Successfully!</h1>
+                        <p className="text-muted-foreground">Reloading your profile...</p>
+                    </div>
+                </motion.div>
+            </main>
         );
     }
 
     // Display existing worker profile instead of the form
     if (existingWorker) {
         return (
-            <div className="min-h-screen py-20 px-4 bg-background">
+            <main className="min-h-screen bg-background">
+                <Navbar />
+                <div className="section-padding px-4 gradient-mesh">
                 <div className="container mx-auto max-w-4xl">
-                    {/* Header Section */}
                     <div className="mb-10">
-                        <div className="flex items-center justify-between mb-4">
-                            <h1 className="text-3xl font-bold">Your Worker Profile</h1>
+                        <Badge variant="accent" className="mb-3">Your Profile</Badge>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                            <h1 className="text-3xl font-extrabold tracking-tight">Worker Profile</h1>
                             <Button
                                 variant="outline"
                                 className="flex items-center gap-2"
@@ -186,33 +204,19 @@ export default function CreateWorkerPage() {
                         <p className="text-muted-foreground">Your professional service profile is active and visible to clients</p>
                     </div>
 
-                    {/* Profile Card */}
-                    <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                        {/* Cover Header */}
-                        <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 h-32"></div>
+                    <Card glass className="overflow-hidden">
+                        <div className="h-36 bg-gradient-to-r from-accent/30 via-purple-500/20 to-accent/10"></div>
 
                         {/* Profile Content */}
                         <div className="p-8 -mt-16">
                             {/* Profile Image and Basic Info */}
                             <div className="flex flex-col md:flex-row gap-6 items-start md:items-end mb-8">
-                                <div className="relative">
-                                    <div className="w-32 h-32 rounded-full border-4 border-card shadow-xl overflow-hidden bg-muted">
-                                        {existingWorker.image ? (
-                                            <img
-                                                src={existingWorker.image}
-                                                alt={existingWorker.displayName}
-                                                className="w-full h-full object-cover"
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-muted-foreground">
-                                                {existingWorker.displayName?.[0]?.toUpperCase() || "W"}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-full border-2 border-card flex items-center justify-center">
-                                        <Briefcase className="w-4 h-4 text-primary-foreground" />
-                                    </div>
-                                </div>
+                                <Avatar
+                                    src={existingWorker.image}
+                                    name={existingWorker.displayName}
+                                    size="xl"
+                                    className="!w-32 !h-32 !text-3xl ring-4 ring-card"
+                                />
 
                                 <div className="flex-1">
                                     <h2 className="text-3xl font-bold mb-1">{existingWorker.displayName}</h2>
@@ -289,49 +293,56 @@ export default function CreateWorkerPage() {
                                 </Button>
                             </div>
                         </div>
-                    </div>
+                    </Card>
 
-                    {/* Additional Information */}
-                    <div className="mt-6 p-4 bg-muted/50 border border-border rounded-lg">
-                        <p className="text-sm text-muted-foreground text-center">
-                            Your profile is visible to potential clients browsing local services.
-                            Keep your information up-to-date to attract more opportunities.
+                    <div className="mt-6 p-5 glass rounded-2xl text-center">
+                        <p className="text-sm text-muted-foreground">
+                            Your profile is visible to potential clients. Keep your information up-to-date to attract more opportunities.
                         </p>
                     </div>
                 </div>
-            </div>
+                </div>
+                <Footer />
+            </main>
         );
     }
 
     return (
-        <div className="min-h-screen py-20 px-4 bg-background">
+        <main className="min-h-screen bg-background">
+            <Navbar />
+            <div className="section-padding px-4 gradient-mesh">
             <div className="container mx-auto max-w-2xl">
                 <div className="mb-10 text-center">
-                    <h1 className="text-3xl font-bold mb-4">Become a ServicePro</h1>
-                    <p className="text-muted-foreground">Create your professional profile and start getting booked.</p>
+                    <Badge variant="accent" className="mb-4">Join Us</Badge>
+                    <h1 className="text-3xl sm:text-4xl font-extrabold mb-3 tracking-tight">
+                        Become a <span className="gradient-text">ServicePro</span>
+                    </h1>
+                    <p className="text-muted-foreground text-lg">Create your professional profile and start getting booked.</p>
                 </div>
 
-                <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden">
-                    <div className="bg-primary/5 p-6 border-b border-border flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                            <Briefcase className="w-6 h-6" />
+                <Card glass className="overflow-hidden">
+                    <CardHeader className="border-b border-border bg-secondary/30">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-xl gradient-bg flex items-center justify-center shadow-md">
+                                <Briefcase className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                                <CardTitle>Professional Details</CardTitle>
+                                <CardDescription>Tell us about your services</CardDescription>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-xl font-semibold">Professional Details</h2>
-                            <p className="text-sm text-muted-foreground">Tell us about your services</p>
-                        </div>
-                    </div>
+                    </CardHeader>
 
                     <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
                         {error && (
-                            <div className="p-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-lg">
+                            <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive text-sm rounded-xl">
                                 {error}
                             </div>
                         )}
 
                         <div className="grid md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Display Name</label>
+                                <Label required>Display Name</Label>
                                 <Input
                                     required
                                     placeholder="e.g. Alex Johnson"
@@ -340,7 +351,7 @@ export default function CreateWorkerPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Role / Title</label>
+                                <Label required>Role / Title</Label>
                                 <Input
                                     required
                                     placeholder="e.g. Senior Barber"
@@ -352,7 +363,7 @@ export default function CreateWorkerPage() {
 
                         <div className="grid md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-sm font-medium mb-1">Location</label>
+                                <Label required>Location</Label>
                                 <Input
                                     required
                                     placeholder="e.g. New York, NY"
@@ -361,7 +372,7 @@ export default function CreateWorkerPage() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium mb-1">Hourly Rate ($)</label>
+                                <Label required>Hourly Rate ($)</Label>
                                 <Input
                                     type="number"
                                     required
@@ -373,18 +384,17 @@ export default function CreateWorkerPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium mb-1">About Your Services</label>
-                            <textarea
-                                className="w-full min-h-[120px] rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                            <Label required>About Your Services</Label>
+                            <Textarea
                                 placeholder="Describe your experience and what you offer..."
                                 required
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                            ></textarea>
+                            />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium">Profile Photo</label>
+                            <Label required>Profile Photo</Label>
                             <label className="block">
                                 <span className="sr-only">Choose profile photo</span>
                                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer hover:bg-secondary/50 transition-colors relative">
@@ -415,24 +425,19 @@ export default function CreateWorkerPage() {
 
                         <div className="pt-4">
                             <Button
-                                className="w-full flex items-center justify-center gap-2"
+                                className="w-full"
                                 size="lg"
-                                disabled={isSubmitting}
+                                loading={isSubmitting}
                             >
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Creating Profile...
-                                    </>
-                                ) : (
-                                    "Create Profile"
-                                )}
+                                Create Profile
                             </Button>
                         </div>
                     </form>
-                </div>
+                </Card>
             </div>
-        </div>
+            </div>
+            <Footer />
+        </main>
     );
 }
 

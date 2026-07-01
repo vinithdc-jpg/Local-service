@@ -2,147 +2,152 @@
 
 import Link from "next/link";
 import Button from "./ui/Button";
+import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 
+const navLinks = [
+  { href: "/#services", label: "Services" },
+  { href: "/workers", label: "Workers" },
+  { href: "/#testimonials", label: "Reviews" },
+  { href: "/#contact", label: "Contact" },
+];
+
 export default function Navbar() {
-    const { isAuthenticated, logout, hasWorkerProfile } = useAuth();
-    const [isOpen, setIsOpen] = useState(false);
+  const { isAuthenticated, logout, hasWorkerProfile } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
 
-    const toggleMenu = () => setIsOpen(!isOpen);
-
-    return (
-        <motion.nav
-            initial={{ y: -100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="glass sticky top-0 z-50 transition-all duration-300"
+  return (
+    <motion.nav
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="glass-strong sticky top-0 z-50 border-b border-border/50"
+    >
+      <div className="container mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-xl font-black tracking-tight text-foreground group z-50"
         >
-            <div className="container mx-auto px-6 h-20 flex items-center justify-between">
-                <Link href="/" className="text-2xl font-black tracking-tighter text-primary group z-50">
-                    Service<span className="text-accent group-hover:text-primary transition-colors duration-300">Pro</span>
-                </Link>
+          <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center shadow-md">
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          Service<span className="gradient-text">Pro</span>
+        </Link>
 
-                {/* Desktop Menu */}
-                <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-muted-foreground">
-                    <Link href="/#services" className="hover:text-accent transition-all duration-300 relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-accent after:transition-all hover:after:w-full">
-                        Services
-                    </Link>
-                    <Link href="/create-worker" className="hover:text-accent transition-all duration-300 relative after:content-[''] after:absolute after:bottom-[-4px] after:left-0 after:w-0 after:h-[2px] after:bg-accent after:transition-all hover:after:w-full">
-                        {hasWorkerProfile ? "Profile" : "Join as Pro"}
-                    </Link>
+        <div className="hidden lg:flex items-center gap-1">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-secondary/60 transition-all duration-200"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </div>
 
-                    <div className="flex items-center gap-4 ml-4">
-                        {isAuthenticated ? (
-                            <>
-                                <button
-                                    onClick={logout}
-                                    className="text-muted-foreground hover:text-red-500 transition-colors text-xs font-bold"
-                                >
-                                    Log out
-                                </button>
-                                <Link href="/services">
-                                    <Button size="sm" className="rounded-full px-6 shadow-lg shadow-accent/20">
-                                        Explorce
-                                    </Button>
-                                </Link>
-                            </>
-                        ) : (
-                            <>
-                                <Link href="/login" className="hover:text-accent transition-colors">Log In</Link>
-                                <Link href="/signup">
-                                    <Button size="sm" className="rounded-full px-6 shadow-lg shadow-accent/20">
-                                        Get Started
-                                    </Button>
-                                </Link>
-                            </>
-                        )}
-                    </div>
-                </div>
+        <div className="hidden md:flex items-center gap-3">
+          <ThemeToggle />
+          <Link
+            href="/create-worker"
+            className="text-sm font-medium text-muted-foreground hover:text-accent transition-colors px-3"
+          >
+            {hasWorkerProfile ? "My Profile" : "Join as Pro"}
+          </Link>
 
-                {/* Mobile Menu Toggle */}
-                <button
-                    className="md:hidden z-50 p-2 text-primary"
-                    onClick={toggleMenu}
+          {isAuthenticated ? (
+            <>
+              <button
+                onClick={logout}
+                className="text-sm font-medium text-muted-foreground hover:text-destructive transition-colors px-3"
+              >
+                Log out
+              </button>
+              <Link href="/services">
+                <Button size="sm">Explore</Button>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="ghost" size="sm">Log In</Button>
+              </Link>
+              <Link href="/signup">
+                <Button size="sm">Get Started</Button>
+              </Link>
+            </>
+          )}
+        </div>
+
+        <div className="flex md:hidden items-center gap-2 z-50">
+          <ThemeToggle />
+          <button
+            className="p-2 text-foreground rounded-xl hover:bg-secondary transition-colors"
+            onClick={() => setIsOpen(!isOpen)}
+            aria-label={isOpen ? "Close menu" : "Open menu"}
+          >
+            {isOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="md:hidden glass-strong border-t border-border overflow-hidden"
+          >
+            <div className="container mx-auto px-6 py-6 flex flex-col gap-1">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsOpen(false)}
+                  className="px-4 py-3 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 rounded-xl transition-colors"
                 >
-                    {isOpen ? <X size={28} /> : <Menu size={28} />}
-                </button>
+                  {link.label}
+                </Link>
+              ))}
+              <Link
+                href="/create-worker"
+                onClick={() => setIsOpen(false)}
+                className="px-4 py-3 text-base font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 rounded-xl transition-colors"
+              >
+                {hasWorkerProfile ? "My Profile" : "Join as Pro"}
+              </Link>
+              <div className="h-px bg-border my-3" />
+              {isAuthenticated ? (
+                <div className="flex flex-col gap-3">
+                  <Link href="/services" onClick={() => setIsOpen(false)}>
+                    <Button className="w-full">Explore Services</Button>
+                  </Link>
+                  <button
+                    onClick={() => { logout(); setIsOpen(false); }}
+                    className="text-center text-destructive font-semibold py-2"
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <Link href="/login" onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full">Log In</Button>
+                  </Link>
+                  <Link href="/signup" onClick={() => setIsOpen(false)}>
+                    <Button className="w-full">Get Started</Button>
+                  </Link>
+                </div>
+              )}
             </div>
-
-            {/* Mobile Menu Overlay */}
-            <AnimatePresence>
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className="md:hidden bg-white/95 backdrop-blur-lg border-b border-slate-100 overflow-hidden"
-                    >
-                        <div className="container mx-auto px-6 py-8 flex flex-col gap-6 font-semibold text-lg text-muted-foreground">
-                            <Link
-                                href="/#services"
-                                onClick={() => setIsOpen(false)}
-                                className="hover:text-accent transition-colors"
-                            >
-                                Services
-                            </Link>
-                            <Link
-                                href="/create-worker"
-                                onClick={() => setIsOpen(false)}
-                                className="hover:text-accent transition-colors"
-                            >
-                                {hasWorkerProfile ? "Profile" : "Join as Pro"}
-                            </Link>
-                            <div className="h-[1px] bg-slate-100 w-full" />
-                            <div className="flex flex-col gap-4">
-                                {isAuthenticated ? (
-                                    <>
-                                        <Link
-                                            href="/services"
-                                            onClick={() => setIsOpen(false)}
-                                        >
-                                            <Button className="w-full rounded-2xl py-6">
-                                                Explore
-                                            </Button>
-                                        </Link>
-                                        <button
-                                            onClick={() => {
-                                                logout();
-                                                setIsOpen(false);
-                                            }}
-                                            className="text-center text-red-500 font-bold"
-                                        >
-                                            Log out
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <Link
-                                            href="/login"
-                                            onClick={() => setIsOpen(false)}
-                                            className="text-center py-2"
-                                        >
-                                            Log In
-                                        </Link>
-                                        <Link
-                                            href="/signup"
-                                            onClick={() => setIsOpen(false)}
-                                        >
-                                            <Button className="w-full rounded-2xl py-6">
-                                                Get Started
-                                            </Button>
-                                        </Link>
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </motion.nav>
-    );
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.nav>
+  );
 }
-
