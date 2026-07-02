@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Send, Paperclip, Smile, MoreVertical, Phone, Video } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -10,6 +11,32 @@ import Avatar from "../components/ui/Avatar";
 import Badge from "../components/ui/Badge";
 import { PageLoader } from "../components/ui/Skeleton";
 import { useAuth } from "../context/AuthContext";
+
+function getStoredUser() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildUserId(user) {
+  if (user?._id) return String(user._id);
+  if (typeof window === "undefined") return "guest";
+  const key = "chat-guest-id";
+  let guestId = sessionStorage.getItem(key);
+  if (!guestId) {
+    guestId = `guest-${Date.now()}`;
+    sessionStorage.setItem(key, guestId);
+  }
+  return guestId;
+}
+
+function buildUserName(user) {
+  return user?.username || user?.displayName || "You";
+}
 
 function TypingIndicator({ name }) {
   return (
@@ -34,150 +61,246 @@ function TypingIndicator({ name }) {
 }
 
 function ChatContent() {
-  const { user } = useAuth();
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      senderId: "worker-1",
-      senderName: "Alex Johnson",
-      text: "Hi there! 👋 I’m online and ready to help you today.",
-      timestamp: new Date(Date.now() - 120000),
-    },
-    {
-      id: 2,
-      senderId: "guest",
-      senderName: "You",
-      text: "I need a service today. Are you available?",
-      timestamp: new Date(Date.now() - 60000),
-    },
-  ]);
+  const searchParams = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
 
+  const workerId = searchParams.get("workerId");
+  const roomId = workerId ? `chat-${workerId}` : searchParams.get("room") || "service-room";
+
+  const [worker, setWorker] = useState(null);
+  const [workerLoading, setWorkerLoading] = useState(!!workerId);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [roomId, setRoomId] = useState("service-room");
-  const [currentUser, setCurrentUser] = useState({ id: "guest", name: "You", role: "client" });
+  const [chatError, setChatError] = useState("");
+
   const socketRef = useRef(null);
   const bottomRef = useRef(null);
+  const currentUserRef = useRef({ id: "guest", name: "You", role: "client" });
+  const typingTimeoutRef = useRef(null);
 
+  const activeUser = user || getStoredUser();
+  const currentUserId = buildUserId(activeUser);
+  const currentUserName = buildUserName(activeUser);
+  const workerName = worker?.displayName || "Service Pro";
+  const workerImage = worker?.image || null;
+
+  currentUserRef.current = {
+    id: currentUserId,
+    name: currentUserName,
+    role: activeUser?.role || "client",
+  };
+
+  // Fetch worker profile for the chat header
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const room = searchParams.get("room") || "service-room";
-    setRoomId(room);
+    if (!workerId) {
+      setWorkerLoading(false);
+      return;
+    }
 
-    const savedUser = JSON.parse(typeof window !== "undefined" ? localStorage.getItem("user") || "null" : "null");
-    const activeUser = user || savedUser;
-    const nextUser = {
-      id: activeUser?._id || `guest-${Date.now()}`,
-      name: activeUser?.username || activeUser?.displayName || "You",
-      role: activeUser?.role || "client",
+    let cancelled = false;
+
+    async function loadWorker() {
+      setWorkerLoading(true);
+      setChatError("");
+      try {
+        const res = await fetch(`/api/createpro/${workerId}`);
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (!res.ok || !data.worker) {
+          setChatError("Could not load this professional. You can still chat in the general room.");
+          return;
+        }
+
+        setWorker(data.worker);
+        setMessages([
+          {
+            id: "welcome",
+            senderId: "system",
+            senderName: "System",
+            text: `You started a conversation with ${data.worker.displayName}. Say hello!`,
+            timestamp: new Date(),
+            isSystem: true,
+          },
+        ]);
+      } catch {
+        if (!cancelled) {
+          setChatError("Could not load worker details.");
+        }
+      } finally {
+        if (!cancelled) setWorkerLoading(false);
+      }
+    }
+
+    loadWorker();
+    return () => {
+      cancelled = true;
     };
+  }, [workerId]);
 
-    setCurrentUser(nextUser);
-  }, [user]);
-
+  // Default welcome when no workerId
   useEffect(() => {
-    if (!roomId) return undefined;
+    if (workerId || messages.length > 0) return;
+    setMessages([
+      {
+        id: "welcome-general",
+        senderId: "system",
+        senderName: "System",
+        text: "Welcome to ServicePro live chat. How can we help you today?",
+        timestamp: new Date(),
+        isSystem: true,
+      },
+    ]);
+  }, [workerId, messages.length]);
 
-    const socket = io(window.location.origin, {
-      transports: ["websocket"],
+  // Socket connection
+  useEffect(() => {
+    if (authLoading || workerLoading) return undefined;
+
+    const socket = io({
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
       reconnection: true,
     });
     socketRef.current = socket;
 
+    const joinRoom = () => {
+      const { id, name, role } = currentUserRef.current;
+      socket.emit("join-room", { roomId, userId: id, username: name, role });
+    };
+
     socket.on("connect", () => {
       setSocketConnected(true);
-      socket.emit("join-room", {
-        roomId,
-        userId: currentUser.id,
-        username: currentUser.name,
-        role: currentUser.role,
-      });
+      setChatError("");
+      joinRoom();
     });
 
     socket.on("disconnect", () => setSocketConnected(false));
 
+    socket.on("connect_error", () => {
+      setSocketConnected(false);
+      setChatError("Unable to connect to chat. Please refresh and try again.");
+    });
+
     socket.on("receive-message", (payload) => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: payload.id || `${payload.senderId}-${Date.now()}`,
-          senderId: payload.senderId,
-          senderName: payload.senderName,
-          text: payload.text,
-          timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-        },
-      ]);
+      if (!payload?.text) return;
+
+      setMessages((prev) => {
+        const exists = prev.some((m) => m.id === payload.id);
+        if (exists) return prev;
+
+        return [
+          ...prev,
+          {
+            id: payload.id || `${payload.senderId}-${Date.now()}`,
+            senderId: payload.senderId,
+            senderName: payload.senderName,
+            text: payload.text,
+            timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+            isSystem: payload.senderId === "system",
+          },
+        ];
+      });
       setIsTyping(false);
     });
 
     socket.on("typing", ({ userId, isTyping: typing }) => {
-      if (userId !== currentUser.id) {
+      if (userId !== currentUserRef.current.id) {
         setIsTyping(typing);
       }
     });
 
     return () => {
       socket.disconnect();
+      socketRef.current = null;
     };
-  }, [roomId, currentUser.id, currentUser.name, currentUser.role]);
+  }, [authLoading, workerLoading, roomId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const sendMessage = (e) => {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isSending || !socketRef.current) return;
+  const sendMessage = useCallback(
+    (e) => {
+      e.preventDefault();
+      const text = input.trim();
+      const socket = socketRef.current;
+      if (!text || isSending || !socket?.connected) return;
 
-    const outgoingMessage = {
-      id: `${currentUser.id}-${Date.now()}`,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      text,
-      timestamp: new Date(),
-    };
+      const { id, name } = currentUserRef.current;
+      const messageId = `${id}-${Date.now()}`;
+      const timestamp = new Date();
 
-    setMessages((prev) => [...prev, outgoingMessage]);
-    socketRef.current.emit("send-message", {
-      roomId,
-      senderId: currentUser.id,
-      senderName: currentUser.name,
-      text,
-      timestamp: outgoingMessage.timestamp,
-    });
-    setInput("");
-    setIsSending(true);
-    setTimeout(() => setIsSending(false), 400);
-    socketRef.current.emit("typing", { roomId, userId: currentUser.id, isTyping: false });
-  };
+      const outgoingMessage = {
+        id: messageId,
+        senderId: id,
+        senderName: name,
+        text,
+        timestamp,
+      };
+
+      setMessages((prev) => [...prev, outgoingMessage]);
+      socket.emit("send-message", {
+        id: messageId,
+        roomId,
+        senderId: id,
+        senderName: name,
+        text,
+        timestamp,
+      });
+
+      setInput("");
+      setIsSending(true);
+      setTimeout(() => setIsSending(false), 300);
+
+      socket.emit("typing", { roomId, userId: id, isTyping: false });
+    },
+    [input, isSending, roomId]
+  );
 
   const handleInputChange = (event) => {
-    setInput(event.target.value);
+    const value = event.target.value;
+    setInput(value);
 
-    if (socketRef.current) {
-      socketRef.current.emit("typing", {
-        roomId,
-        userId: currentUser.id,
-        isTyping: event.target.value.length > 0,
-      });
-    }
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+
+    const { id } = currentUserRef.current;
+    socket.emit("typing", { roomId, userId: id, isTyping: value.length > 0 });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit("typing", { roomId, userId: id, isTyping: false });
+    }, 1500);
   };
+
+  if (authLoading || workerLoading) {
+    return <PageLoader message="Loading chat..." />;
+  }
 
   return (
     <div className="flex flex-col flex-1 max-h-[calc(100vh-4rem)] overflow-hidden bg-background">
       <div className="glass-strong border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <Avatar name="Alex Johnson" size="md" online />
+          <Avatar src={workerImage} name={workerName} size="md" online={socketConnected} />
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-base">Alex Johnson</h2>
-              <Badge variant="success" className="text-[10px] px-2">Pro</Badge>
+              <h2 className="font-bold text-base">{workerName}</h2>
+              {worker?.role && (
+                <Badge variant="success" className="text-[10px] px-2">
+                  {worker.role}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className={`w-1.5 h-1.5 rounded-full ${socketConnected ? "bg-success animate-pulse" : "bg-muted-foreground"}`} />
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  socketConnected ? "bg-success animate-pulse" : "bg-muted-foreground"
+                }`}
+              />
               {socketConnected ? "Online now" : "Connecting..."}
             </div>
           </div>
@@ -186,6 +309,7 @@ function ChatContent() {
           {[Phone, Video, MoreVertical].map((Icon, i) => (
             <button
               key={i}
+              type="button"
               className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               aria-label="Chat action"
             >
@@ -195,16 +319,38 @@ function ChatContent() {
         </div>
       </div>
 
+      {chatError && (
+        <div className="px-4 py-2 text-sm text-destructive bg-destructive/10 border-b border-destructive/20">
+          {chatError}
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
         <div className="text-center mb-6">
           <span className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
-            Live chat • Room {roomId}
+            {workerId ? `Chat with ${workerName}` : "Live support"}
           </span>
         </div>
 
         <AnimatePresence initial={false}>
           {messages.map((msg) => {
-            const isMe = msg.senderId === currentUser.id || msg.sender === "me";
+            if (msg.isSystem || msg.senderId === "system") {
+              return (
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex justify-center"
+                >
+                  <span className="text-xs text-muted-foreground bg-secondary/80 px-3 py-1.5 rounded-full">
+                    {msg.text}
+                  </span>
+                </motion.div>
+              );
+            }
+
+            const isMe = msg.senderId === currentUserId;
+
             return (
               <motion.div
                 key={msg.id}
@@ -213,7 +359,13 @@ function ChatContent() {
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                 className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}
               >
-                {!isMe && <Avatar name={msg.senderName || "Alex Johnson"} size="sm" />}
+                {!isMe && (
+                  <Avatar
+                    src={msg.senderId === workerId ? workerImage : null}
+                    name={msg.senderName || workerName}
+                    size="sm"
+                  />
+                )}
 
                 <div className={`max-w-[75%] sm:max-w-[60%] ${isMe ? "order-first" : ""}`}>
                   <div
@@ -234,13 +386,13 @@ function ChatContent() {
                   </p>
                 </div>
 
-                {isMe && <Avatar name={currentUser.name} size="sm" />}
+                {isMe && <Avatar name={currentUserName} size="sm" />}
               </motion.div>
             );
           })}
         </AnimatePresence>
 
-        {isTyping && <TypingIndicator name="Alex Johnson" />}
+        {isTyping && <TypingIndicator name={workerName} />}
         <div ref={bottomRef} />
       </div>
 
@@ -258,8 +410,9 @@ function ChatContent() {
             <input
               value={input}
               onChange={handleInputChange}
-              placeholder="Type a message..."
-              className="w-full h-12 rounded-2xl border border-input bg-background/80 px-5 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all placeholder:text-muted-foreground"
+              placeholder={socketConnected ? "Type a message..." : "Connecting..."}
+              disabled={!socketConnected}
+              className="w-full h-12 rounded-2xl border border-input bg-background/80 px-5 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all placeholder:text-muted-foreground disabled:opacity-60"
             />
             <button
               type="button"
@@ -272,7 +425,7 @@ function ChatContent() {
 
           <button
             type="submit"
-            disabled={!input.trim() || isSending}
+            disabled={!input.trim() || isSending || !socketConnected}
             className="h-12 w-12 rounded-2xl gradient-bg text-white flex items-center justify-center shrink-0 hover:brightness-110 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shadow-md"
             aria-label="Send message"
           >

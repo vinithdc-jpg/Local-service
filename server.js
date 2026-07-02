@@ -41,8 +41,10 @@ app.prepare().then(() => {
       const targetRoom = payload.roomId || socket.data?.roomId;
       if (!targetRoom) return;
 
-      io.to(targetRoom).emit("receive-message", {
+      // Broadcast to others in the room only; sender already has optimistic UI.
+      socket.to(targetRoom).emit("receive-message", {
         ...payload,
+        id: payload.id || `${payload.senderId}-${Date.now()}`,
         timestamp: payload.timestamp || new Date(),
       });
     });
