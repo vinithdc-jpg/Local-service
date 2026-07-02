@@ -4,16 +4,18 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { Send, Paperclip, Smile, MoreVertical, Phone, Video } from "lucide-react";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { io } from "socket.io-client";
 import Navbar from "../components/Navbar";
 import Avatar from "../components/ui/Avatar";
 import Badge from "../components/ui/Badge";
 import { PageLoader } from "../components/ui/Skeleton";
+import { useAuth } from "../context/AuthContext";
 
-function TypingIndicator() {
+function TypingIndicator({ name }) {
   return (
     <div className="flex justify-start">
       <div className="flex items-end gap-2">
-        <Avatar name="Worker" size="sm" />
+        <Avatar name={name} size="sm" />
         <div className="bg-secondary rounded-2xl rounded-bl-md px-4 py-3 flex items-center gap-1">
           {[0, 1, 2].map((i) => (
             <span
@@ -32,73 +34,140 @@ function TypingIndicator() {
 }
 
 function ChatContent() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([
     {
       id: 1,
-      sender: "worker",
-      text: "Hi there! 👋 How can I help you today?",
+      senderId: "worker-1",
+      senderName: "Alex Johnson",
+      text: "Hi there! 👋 I’m online and ready to help you today.",
       timestamp: new Date(Date.now() - 120000),
     },
     {
       id: 2,
-      sender: "me",
+      senderId: "guest",
+      senderName: "You",
       text: "I need a service today. Are you available?",
       timestamp: new Date(Date.now() - 60000),
-    },
-    {
-      id: 3,
-      sender: "worker",
-      text: "Absolutely! I have openings this afternoon. What service are you looking for?",
-      timestamp: new Date(Date.now() - 30000),
     },
   ]);
 
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [roomId, setRoomId] = useState("service-room");
+  const [currentUser, setCurrentUser] = useState({ id: "guest", name: "You", role: "client" });
+  const socketRef = useRef(null);
   const bottomRef = useRef(null);
-  const messagesRef = useRef(null);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const room = searchParams.get("room") || "service-room";
+    setRoomId(room);
+
+    const savedUser = JSON.parse(typeof window !== "undefined" ? localStorage.getItem("user") || "null" : "null");
+    const activeUser = user || savedUser;
+    const nextUser = {
+      id: activeUser?._id || `guest-${Date.now()}`,
+      name: activeUser?.username || activeUser?.displayName || "You",
+      role: activeUser?.role || "client",
+    };
+
+    setCurrentUser(nextUser);
+  }, [user]);
+
+  useEffect(() => {
+    if (!roomId) return undefined;
+
+    const socket = io(window.location.origin, {
+      transports: ["websocket"],
+      reconnection: true,
+    });
+    socketRef.current = socket;
+
+    socket.on("connect", () => {
+      setSocketConnected(true);
+      socket.emit("join-room", {
+        roomId,
+        userId: currentUser.id,
+        username: currentUser.name,
+        role: currentUser.role,
+      });
+    });
+
+    socket.on("disconnect", () => setSocketConnected(false));
+
+    socket.on("receive-message", (payload) => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: payload.id || `${payload.senderId}-${Date.now()}`,
+          senderId: payload.senderId,
+          senderName: payload.senderName,
+          text: payload.text,
+          timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+        },
+      ]);
+      setIsTyping(false);
+    });
+
+    socket.on("typing", ({ userId, isTyping: typing }) => {
+      if (userId !== currentUser.id) {
+        setIsTyping(typing);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [roomId, currentUser.id, currentUser.name, currentUser.role]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  const sendMessage = async (e) => {
+  const sendMessage = (e) => {
     e.preventDefault();
-    if (!input.trim() || isSending) return;
+    const text = input.trim();
+    if (!text || isSending || !socketRef.current) return;
 
-    const newMsg = {
-      id: Date.now(),
-      sender: "me",
-      text: input.trim(),
+    const outgoingMessage = {
+      id: `${currentUser.id}-${Date.now()}`,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      text,
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, newMsg]);
+    setMessages((prev) => [...prev, outgoingMessage]);
+    socketRef.current.emit("send-message", {
+      roomId,
+      senderId: currentUser.id,
+      senderName: currentUser.name,
+      text,
+      timestamp: outgoingMessage.timestamp,
+    });
     setInput("");
     setIsSending(true);
+    setTimeout(() => setIsSending(false), 400);
+    socketRef.current.emit("typing", { roomId, userId: currentUser.id, isTyping: false });
+  };
 
-    setTimeout(() => {
-      setIsTyping(true);
-      setTimeout(() => {
-        setIsTyping(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: "worker",
-            text: "Thanks for your message! I'll get back to you shortly with availability.",
-            timestamp: new Date(),
-          },
-        ]);
-        setIsSending(false);
-      }, 2000);
-    }, 500);
+  const handleInputChange = (event) => {
+    setInput(event.target.value);
+
+    if (socketRef.current) {
+      socketRef.current.emit("typing", {
+        roomId,
+        userId: currentUser.id,
+        isTyping: event.target.value.length > 0,
+      });
+    }
   };
 
   return (
     <div className="flex flex-col flex-1 max-h-[calc(100vh-4rem)] overflow-hidden bg-background">
-      {/* Chat Header */}
       <div className="glass-strong border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Avatar name="Alex Johnson" size="md" online />
@@ -108,8 +177,8 @@ function ChatContent() {
               <Badge variant="success" className="text-[10px] px-2">Pro</Badge>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-              Online now
+              <span className={`w-1.5 h-1.5 rounded-full ${socketConnected ? "bg-success animate-pulse" : "bg-muted-foreground"}`} />
+              {socketConnected ? "Online now" : "Connecting..."}
             </div>
           </div>
         </div>
@@ -126,20 +195,16 @@ function ChatContent() {
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div
-        ref={messagesRef}
-        className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4"
-      >
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
         <div className="text-center mb-6">
           <span className="text-xs text-muted-foreground bg-secondary px-3 py-1 rounded-full">
-            Today
+            Live chat • Room {roomId}
           </span>
         </div>
 
         <AnimatePresence initial={false}>
           {messages.map((msg) => {
-            const isMe = msg.sender === "me";
+            const isMe = msg.senderId === currentUser.id || msg.sender === "me";
             return (
               <motion.div
                 key={msg.id}
@@ -148,7 +213,7 @@ function ChatContent() {
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                 className={`flex items-end gap-2 ${isMe ? "justify-end" : "justify-start"}`}
               >
-                {!isMe && <Avatar name="Alex Johnson" size="sm" />}
+                {!isMe && <Avatar name={msg.senderName || "Alex Johnson"} size="sm" />}
 
                 <div className={`max-w-[75%] sm:max-w-[60%] ${isMe ? "order-first" : ""}`}>
                   <div
@@ -169,21 +234,17 @@ function ChatContent() {
                   </p>
                 </div>
 
-                {isMe && <Avatar name="You" size="sm" />}
+                {isMe && <Avatar name={currentUser.name} size="sm" />}
               </motion.div>
             );
           })}
         </AnimatePresence>
 
-        {isTyping && <TypingIndicator />}
+        {isTyping && <TypingIndicator name="Alex Johnson" />}
         <div ref={bottomRef} />
       </div>
 
-      {/* Sticky Input */}
-      <form
-        onSubmit={sendMessage}
-        className="glass-strong border-t border-border p-4 shrink-0"
-      >
+      <form onSubmit={sendMessage} className="glass-strong border-t border-border p-4 shrink-0">
         <div className="flex items-end gap-2 max-w-4xl mx-auto">
           <button
             type="button"
@@ -196,7 +257,7 @@ function ChatContent() {
           <div className="flex-1 relative">
             <input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               placeholder="Type a message..."
               className="w-full h-12 rounded-2xl border border-input bg-background/80 px-5 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all placeholder:text-muted-foreground"
             />

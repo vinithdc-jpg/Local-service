@@ -32,15 +32,15 @@ export async function POST(request) {
       );
     }
 
-    // Check if worker profile already exists for this user
+    // Enforce one worker account per user.
     const existingWorker = await workerModel.findOne({ userId: decoded.userId });
     if (existingWorker) {
       return NextResponse.json(
         {
-          error: "You already have a worker profile.",
-          worker: existingWorker
+          error: "You already have a worker profile. One account can only create one worker profile.",
+          worker: existingWorker,
         },
-        { status: 400 }
+        { status: 409 }
       );
     }
 
